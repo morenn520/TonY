@@ -22,6 +22,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.ipc.RPC;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 
@@ -112,6 +115,12 @@ public class TaskExecutor {
         0,
         executor.metricsIntervalMs,
         TimeUnit.MILLISECONDS);
+
+    Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
+    LOG.info("Executing with tokens:");
+    for (Token<?> token: credentials.getAllTokens()) {
+      LOG.info(token);
+    }
 
     executor.setupPorts();
     executor.clusterSpec = executor.registerAndGetClusterSpec();

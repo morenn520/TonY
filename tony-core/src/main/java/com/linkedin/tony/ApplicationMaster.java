@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -251,6 +252,7 @@ public class ApplicationMaster {
     enablePreprocessing = tonyConf.getBoolean(TonyConfigurationKeys.ENABLE_PREPROCESSING_JOB,
                                               TonyConfigurationKeys.DEFAULT_ENABLE_PREPROCESSING_JOB);
     containerId = ContainerId.fromString(envs.get(ApplicationConstants.Environment.CONTAINER_ID.name()));
+    appAttemptID = containerId.getApplicationAttemptId();
     appIdString = containerId.getApplicationAttemptId().getApplicationId().toString();
     hbInterval = tonyConf.getInt(TonyConfigurationKeys.TASK_HEARTBEAT_INTERVAL_MS,
         TonyConfigurationKeys.DEFAULT_TASK_HEARTBEAT_INTERVAL_MS);
@@ -312,6 +314,12 @@ public class ApplicationMaster {
 
     if (!prepare()) {
       return false;
+    }
+
+    Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
+    LOG.info("Executing with tokens:");
+    for (Token<?> token: credentials.getAllTokens()) {
+      LOG.info(token);
     }
 
     mainThread = Thread.currentThread();
@@ -404,10 +412,12 @@ public class ApplicationMaster {
     amRMClient.start();
 
     RegisterApplicationMasterResponse response;
+    String hostNameOrIpFromTokenConf = null;
     try {
+      hostNameOrIpFromTokenConf = Utils.getHostNameOrIpFromTokenConf(yarnConf);
       response = amRMClient.registerApplicationMaster(amHostname, amPort, null);
-      amHostPort = amHostname + ":" + amPort;
-    } catch (YarnException e) {
+      amHostPort = hostNameOrIpFromTokenConf + ":" + amPort;
+    } catch (YarnException | SocketException e) {
       LOG.error("Exception while preparing AM", e);
       return false;
     }
@@ -423,11 +433,13 @@ public class ApplicationMaster {
       // create token for application RPC server
       Token<? extends TokenIdentifier> tensorflowClusterToken = new Token<>(identifier, secretManager);
       tensorflowClusterToken.setService(new Text(amHostPort));
+      LOG.info("tensorflowClusterToken: " + tensorflowClusterToken);
       UserGroupInformation.getCurrentUser().addToken(tensorflowClusterToken);
 
       // create token for metrics RPC server
       Token<? extends TokenIdentifier> metricsToken = new Token<>(identifier, secretManager);
-      metricsToken.setService(new Text(amHostname + ":" + metricsRpcPort));
+      metricsToken.setService(new Text(hostNameOrIpFromTokenConf + ":" + metricsRpcPort));
+      LOG.info("metricsToken: " + metricsToken);
       UserGroupInformation.getCurrentUser().addToken(metricsToken);
 
       setupContainerCredentials();
@@ -1119,7 +1131,7 @@ public class ApplicationMaster {
       }
       ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(containerResources, containerLaunchEnv,
                                                                       commands, null, tokens, acls);
-
+      LOG.info("ContainerLaunchContext: " + ctx);
       String sessionId = String.valueOf(session.sessionId);
       sessionContainersMap.computeIfAbsent(sessionId, key ->
           Collections.synchronizedList(new ArrayList<>())

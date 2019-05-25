@@ -8,6 +8,9 @@ buildscript {
   repositories {
     jcenter()
     maven {
+      url "http://maven.qiyi.virtual/a/repository/"
+    }
+    maven {
       url "https://plugins.gradle.org/m2/"
     }
   }
@@ -127,6 +130,9 @@ subprojects {
   }
 
   repositories {
+    maven {
+      url "http://maven.qiyi.virtual/a/repository/"
+    }
     mavenCentral()
   }
   plugins.withType(JavaPlugin) {
