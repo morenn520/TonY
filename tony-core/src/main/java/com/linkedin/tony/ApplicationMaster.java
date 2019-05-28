@@ -814,6 +814,7 @@ public class ApplicationMaster {
     @Override
     public String registerWorkerSpec(String taskId, String spec) throws IOException {
       TonyTask task = session.getTask(taskId);
+      LOG.info("Register worker " + taskId);
       if (task.getHost() == null) {
         LOG.info("Received cluster spec registration request from task " + taskId + " with spec: " + spec);
         task.setHostPort(spec);
@@ -825,6 +826,8 @@ public class ApplicationMaster {
         LOG.info("[" + taskId + "] Received Registration for HB !!");
         hbMonitor.register(task);
         killChiefWorkerIfTesting(taskId);
+      } else {
+        LOG.info("Received task with host " + task.getHost());
       }
 
       // Return null until all tasks have registered
