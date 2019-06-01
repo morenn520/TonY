@@ -191,6 +191,10 @@ public class TonySession {
 
     for (Map.Entry<String, TonyTask[]> entry : jobTasks.entrySet()) {
       String jobName = entry.getKey();
+      if (jobName.equals("evaluator")) {
+        continue;
+      }
+
       TonyTask[] tasks = entry.getValue();
 
       List<String> builder = new ArrayList<>();
